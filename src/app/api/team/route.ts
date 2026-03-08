@@ -1,0 +1,38 @@
+import { createClient } from '@/lib/supabase/server'
+import { NextRequest, NextResponse } from 'next/server'
+
+export async function GET() {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('team_members')
+    .select('*')
+    .eq('is_active', true)
+    .order('name')
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data)
+}
+
+export async function POST(request: NextRequest) {
+  const supabase = await createClient()
+  const body = await request.json()
+
+  const { data: member } = await supabase
+    .from('team_members')
+    .select('clinic_id, role')
+    .single()
+
+  if (!member || member.role !== 'admin') {
+    return NextResponse.json({ error: 'Apenas administradores podem adicionar membros' }, { status: 403 })
+  }
+
+  const { data, error } = await supabase
+    .from('team_members')
+    .insert({ ...body, clinic_id: member.clinic_id })
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data, { status: 201 })
+}
